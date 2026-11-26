@@ -85,7 +85,7 @@
       <option value="normale">Modalità: normale</option>
       <option value="psicologo">Modalità: psicologo</option>
     </select>
-    <button id="send-btn" type="submit">Elabora</button>
+    <button id="send-btn" type="t">Elabora</button>
   </form>
 
   <div id="final-box" class="final-box" style="display:none;">
@@ -115,30 +115,36 @@
       grid.innerHTML = "";
       finalBox.style.display = "none";
 
-      try {
-        const res = await fetch("/api/brain", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ message, mode: modeSelect.value })
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || "Errore nella richiesta");
+    try {
+            const res = await fetch("/api/brain", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ message, mode: modeSelect.value })
+            });
+            const rawText = await res.text();
+            let data;
+            try {
+              data = JSON.parse(rawText);
+            } catch {
+              throw new Error(`Risposta non JSON dal server (HTTP ${res.status}): ${rawText.slice(0, 150)}`);
+            }
+            if (!res.ok) throw new Error(data.error || "Errore nella richiesta");
 
-        finalText.textContent = data.risposta_finale || "(Nessuna risposta finale)";
-        finalBox.style.display = "block";
+            finalText.textContent = data.risposta_finale || "(Nessuna risposta finale)";
+            finalBox.style.display = "block";
 
-        for (const area of ORDER) {
-          const msgs = Array.isArray(data[area]) ? data[area] : [];
-          const card = document.createElement("div");
-          card.className = "card";
-          card.innerHTML = `<div class="card-header">${area}</div>` + msgs.map(m => `
-            <div class="msg">
-              <div class="route">${m.source} → ${m.target} (${m.type})</div>
-              <pre>${JSON.stringify(m.content, null, 2)}</pre>
-            </div>
+            for (const area of ORDER) {
+              const msgs = Array.isArray(data[area]) ? data[area] : [];
+              const card = document.createElement("div");
+              card.className = "card";
+              card.innerHTML = `<div class="card-header">${area}</div>` + msgs.map(m => `
+                <div class="msg">
+                  <div class="route">${m.source} → ${m.target} (${m.type})</div>
+                  <pre>${JSON.stringify(m.content, null, 2)}</pre>
+                </div>
           `).join("");
-          grid.appendChild(card);
-        }
+              grid.appendChild(card);
+            }
       } catch (err) {
         finalText.textContent = "Errore: " + err.message;
         finalBox.style.display = "block";
