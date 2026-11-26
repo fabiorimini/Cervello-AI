@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Cervello AI — Scambio Messaggi tra Aree</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      max-width: 920px;
+      margin: 2rem auto;
+      padding: 0 1rem;
+      background: #0f172a;
+      color: #e2e8f0;
+    }
+    h1 { margin-bottom: 0.25rem; }
+    .sub { color: #94a3b8; margin-top: 0; }
+    .controls { display: flex; gap: 0.5rem; margin: 1.25rem 0; flex-wrap: wrap; }
+    input, select, button {
+      padding: 0.65rem 0.85rem;
+      border-radius: 8px;
+      border: 1px solid #334155;
+      font-size: 1rem;
+    }
+    input { flex: 1; min-width: 240px; background: #1e293b; color: #f8fafc; }
+    select { background: #1e293b; color: #f8fafc; }
+    button {
+      background: #2563eb;
+      color: white;
+      border: none;
+      cursor: pointer;
+      font-weight: 600;
+    }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+    .final-box {
+      background: #1e293b;
+      border-left: 4px solid #38bdf8;
+      padding: 1rem 1.25rem;
+      border-radius: 8px;
+      margin-bottom: 1.5rem;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(270px, 1fr));
+      gap: 1rem;
+    }
+    .card {
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 10px;
+      padding: 0.9rem 1rem;
+    }
+    .card-header {
+      font-weight: 700;
+      color: #7dd3fc;
+      margin-bottom: 0.5rem;
+      text-transform: uppercase;
+      font-size: 0.85rem;
+      letter-spacing: 0.04em;
+    }
+    .msg {
+      background: #0f172a;
+      border-radius: 6px;
+      padding: 0.6rem;
+      margin-bottom: 0.6rem;
+      font-size: 0.85rem;
+    }
+    .route { color: #fbbf24; font-weight: 600; margin-bottom: 0.25rem; }
+    pre {
+      margin: 0.25rem 0 0;
+      white-space: pre-wrap;
+      word-break: break-word;
+      color: #cbd5e1;
+      font-size: 0.78rem;
+    }
+  </style>
+</head>
+<body>
+  <h1>Cervello AI</h1>
+  <p class="sub">Simulazione dei messaggi scambiati tra aree funzionali con GPT-4o-mini</p>
+
+  <form id="brain-form" class="controls">
+    <input id="msg-input" type="text" placeholder="Scrivi un pensiero o una domanda..." required />
+    <select id="mode-select">
+      <option value="normale">Modalità: normale</option>
+      <option value="psicologo">Modalità: psicologo</option>
+    </select>
+    <button id="send-btn" type="submit">Elabora</button>
+  </form>
+
+  <div id="final-box" class="final-box" style="display:none;">
+    <strong>Risposta finale (Sociale → Output):</strong>
+    <p id="final-text" style="margin:0.5rem 0 0; font-size:1.05rem;"></p>
+  </div>
+
+  <div id="modules-grid" class="grid"></div>
+
+  <script>
+    const ORDER = ["percezione", "emotivo", "motivazionale", "memoria", "logico", "metacognizione", "sociale"];
+    const form = document.getElementById("brain-form");
+    const input = document.getElementById("msg-input");
+    const modeSelect = document.getElementById("mode-select");
+    const sendBtn = document.getElementById("send-btn");
+    const finalBox = document.getElementById("final-box");
+    const finalText = document.getElementById("final-text");
+    const grid = document.getElementById("modules-grid");
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const message = input.value.trim();
+      if (!message) return;
+
+      sendBtn.disabled = true;
+      sendBtn.textContent = "Elaboro...";
+      grid.innerHTML = "";
+      finalBox.style.display = "none";
+
+      try {
+        const res = await fetch("/api/brain", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ message, mode: modeSelect.value })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Errore nella richiesta");
+
+        finalText.textContent = data.risposta_finale || "(Nessuna risposta finale)";
+        finalBox.style.display = "block";
+
+        for (const area of ORDER) {
+          const msgs = Array.isArray(data[area]) ? data[area] : [];
+          const card = document.createElement("div");
+          card.className = "card";
+          card.innerHTML = `<div class="card-header">${area}</div>` + msgs.map(m => `
+            <div class="msg">
+              <div class="route">${m.source} → ${m.target} (${m.type})</div>
+              <pre>${JSON.stringify(m.content, null, 2)}</pre>
+            </div>
+          `).join("");
+          grid.appendChild(card);
+        }
+      } catch (err) {
+        finalText.textContent = "Errore: " + err.message;
+        finalBox.style.display = "block";
+      } finally {
+        sendBtn.disabled = false;
+        sendBtn.textContent = "Elabora";
+      }
+    });
+  </script>
+</body>
+</html>
