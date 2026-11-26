@@ -20,10 +20,13 @@ export async function askBrainJSON(systemPrompt, payload, fallbackObj) {
     });
 
     const raw = completion.choices?.[0]?.message?.content;
-    if (!raw) return fallbackObj;
+    if (!raw) {
+      console.warn("Risposta vuota da OpenAI, uso fallback");
+      return fallbackObj;
+    }
     return { ...fallbackObj, ...JSON.parse(raw) };
   } catch (err) {
-    console.error("Errore chiamata OpenAI:", err.message);
+    console.error("Errore chiamata OpenAI:", err?.status || "", err?.message || err);
     return fallbackObj;
   }
 }
